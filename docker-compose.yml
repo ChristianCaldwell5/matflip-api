@@ -1,0 +1,34 @@
+version: '3.9'
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express:1
+    restart: unless-stopped
+    ports:
+      - '8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+    depends_on:
+      - mongo
+
+# Matflip API Application, comment to not dockerize
+  app:
+    build: .
+    env_file:
+      - ./src/environments/env.development
+    environment:
+      - NODE_ENV=development
+    ports:
+      - '3000:3000'
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:
