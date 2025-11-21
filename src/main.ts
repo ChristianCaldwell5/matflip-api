@@ -11,7 +11,7 @@ async function bootstrap() {
   // Cookies and CORS for cross-site redirect/login
   app.use(cookieParser());
   app.enableCors({
-    origin: process.env.UI_ORIGIN || true,
+    origin: process.env.UI_ORIGIN || 'http://localhost:4200',
     credentials: true,
   });
   await app.listen(process.env.PORT ?? 3000);

@@ -11,12 +11,12 @@ export class UsersService {
     return this.userModel.create(data);
   }
 
-  findById(id: string) {
+  findByUserId(id: string) {
     return this.userModel.findById(id).exec();
   }
 
-  findByEmail(email: string) {
-    return this.userModel.findOne({ email }).exec();
+  findByGoogleId(googleId: string) {
+    return this.userModel.findOne({ googleId }).exec();
   }
 
   upsertByEmail(email: string, update: Partial<User>) {

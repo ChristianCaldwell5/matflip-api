@@ -11,7 +11,7 @@ export class AuthController {
     async googleAuthCallback(@Body() reqBody: any, @Req() req: Request, @Res() res: Response) {
         const credential = reqBody?.credential ?? null;
         if (!credential) {
-            throw new BadRequestException('Missing credential');
+            throw new BadRequestException('Missing credentials');
         }
         // CSRF token check
         const cookieCsrf = (req as any).cookies?.['g_csrf_token'];
@@ -51,8 +51,8 @@ export class AuthController {
             picture: appUser.avatarUrl,
         });
 
-        const cookieDomain = process.env.COOKIE_DOMAIN; // e.g., .example.com or localhost
-        res.cookie('session', session, {
+        const cookieDomain = process.env.COOKIE_DOMAIN;
+        res.cookie('mf_session', session, {
             httpOnly: true,
             secure: true, // required for SameSite=None in modern browsers
             sameSite: 'none',
@@ -63,6 +63,7 @@ export class AuthController {
 
         // Redirect to UI; do not include tokens or PII in query
         const uiBase = process.env.UI_BASE_URL || 'http://localhost:4200';
-        return res.redirect(302, `${uiBase}/auth/redirect`);
+        return res.redirect(302, `${uiBase}/login`);
     }
+
 }
