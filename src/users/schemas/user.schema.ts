@@ -1,10 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { PlayerStats, PlayerStatsSchema } from './player-stats.schema';
+import { LevelInfo, LevelInfoSchema } from './level-info.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true, toObject: { virtuals: true }, toJSON: { virtuals: true } })
 export class User {
+  // ** GOOGLE BASED USER FIELDS
   @Prop({ required: true, index: true })
   email: string;
 
@@ -16,6 +19,18 @@ export class User {
 
   @Prop({ index: true })
   googleId?: string;
+  // ** END GOOGLE BASED USER FIELDS
+
+  // ** MATFLIP bonus fields
+  @Prop()
+  displayName?: string;
+
+  @Prop({ type: PlayerStatsSchema })
+  stats?: PlayerStats;
+
+  @Prop({ type: LevelInfoSchema })
+  levelInfo?: LevelInfo;
+  // ** END MATFLIP bonus fields
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

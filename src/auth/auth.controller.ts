@@ -27,11 +27,13 @@ export class AuthController {
         let appUser: any | null = null;
         if (payload.email) {
             try {
-                appUser = await this.usersService.upsertByEmail(payload.email, {
-                    name: payload.name,
-                    avatarUrl: payload.picture,
-                    googleId: payload.sub,
-                });
+                const newUserProfile = this.usersService.generateNewUserProfile(
+                    payload.email,
+                    payload.name,
+                    payload.picture,
+                    payload.sub
+                );
+                appUser = await this.usersService.upsertByEmail(payload.email, newUserProfile);
             } catch (err) {
                 console.error('Error upserting user:', err);
                 throw new BadRequestException('Error processing user');

@@ -2,6 +2,7 @@ import { Controller, Get, BadRequestException, Req, NotFoundException, Unauthori
 import { Response, Request } from 'express';
 import { UsersService } from './users.service';
 import { AuthService } from '../auth/auth.service';
+import { UserDTO, toUserDTO } from './dto/user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -21,7 +22,7 @@ export class UsersController {
      * @returns User info
      */
     @Get('retrieve')
-    async retrieve(@Req() req: Request) {
+    async retrieve(@Req() req: Request): Promise<UserDTO> {
         const token = (req as any).cookies?.['mf_session'];
         if (!token) {
             throw new BadRequestException('Missing session');
@@ -35,13 +36,7 @@ export class UsersController {
         if (!user) {
             throw new BadRequestException('User not found');
         }
-        return {
-            id: String(user._id),
-            email: user.email,
-            name: user.name,
-            picture: user.avatarUrl,
-            email_verified: !!claims.email_verified,
-        };
+        return toUserDTO(user);
     }
 
     /**
@@ -50,7 +45,7 @@ export class UsersController {
      * @returns User info
      */
     @Get(':id')
-    async getByGoogleId(@Param('id') id: string, @Headers('x-mat-flip-request') secureHeader?: string) {
+    async getByGoogleId(@Param('id') id: string, @Headers('x-mat-flip-request') secureHeader?: string): Promise<UserDTO> {
         if (secureHeader !== process.env.MAT_FLIP_X_HEADER) {
             throw new UnauthorizedException('YOU SHOULD NOT BE HERE >:(');
         }
@@ -59,7 +54,7 @@ export class UsersController {
         if (!user) {
             throw new NotFoundException('There was no user matching the given Google ID');
         }
-        return user;
+        return toUserDTO(user);
     }
 
     @Post('/logout')
