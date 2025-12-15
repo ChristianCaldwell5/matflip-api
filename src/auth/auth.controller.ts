@@ -1,7 +1,7 @@
 import { Body, Controller, Post, BadRequestException, Req, Res, Get } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from 'src/users/services/users.service';
 
 @Controller('auth')
 export class AuthController {

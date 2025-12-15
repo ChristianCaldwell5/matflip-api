@@ -3,10 +3,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 @Schema({ _id: false })
 export class GeneralStats {
     @Prop({ default: 0 })
-    totalGamesPlayed?: number;
+    totalGamesPlayed: number;
 
     @Prop({ default: 0 })
-    totalFlips?: number;
+    totalFlips: number;
 }
 
 export const GeneralStatsSchema = SchemaFactory.createForClass(GeneralStats);
@@ -23,7 +23,7 @@ export class DailyStats {
     lastPlayed: Date | null;
 
     @Prop({ default: 0 })
-    timesPlayed: number;
+    totalTimesPlayed: number;
 
     @Prop({ default: 0 })
     timesPlacedOnLeaderboard: number;
@@ -41,6 +41,8 @@ export const DailyStatsSchema = SchemaFactory.createForClass(DailyStats);
 export class SolutionDifficultyStats {
     @Prop({ default: 0 })
     timesPlayed: number;
+    @Prop({ default: 0 })
+    solutionsFound: number;
     @Prop({ default: 0 })
     highestSolutionCount: number;
     @Prop({ default: 0 })
@@ -65,6 +67,8 @@ export const SolutionDifficultiesSchema = SchemaFactory.createForClass(SolutionD
 export class SolutionStats {
     @Prop({ default: 0 })
     totalTimesPlayed: number;
+    @Prop({ default: 0 })
+    totalSolutionsFound: number;
     @Prop({ type: SolutionDifficultiesSchema, default: () => ({}) })
     difficultyBreakdown: SolutionDifficulties;
 }
@@ -76,8 +80,10 @@ export class PairDifficultyStats {
     timesPlayed: number;
     @Prop({ default: 0 })
     timesWon: number;
+    @Prop({ type: Number, default: null })
+    bestTimeInSeconds: number | null;
     @Prop({ default: 0 })
-    bestTimeInSeconds: number;
+    totalTimeInSeconds: number;
 }
 export const PairDifficultyStatsSchema = SchemaFactory.createForClass(PairDifficultyStats);
 
