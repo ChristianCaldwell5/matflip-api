@@ -2,6 +2,7 @@ import { Body, Controller, Post, BadRequestException, Req, Res, Get } from '@nes
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from 'src/users/services/users.service';
+import { User } from 'src/users/schemas/user.schema';
 
 @Controller('auth')
 export class AuthController {
@@ -23,9 +24,18 @@ export class AuthController {
         // Verify the ID token with Google
         const payload = await this.authService.verifyGoogleIdToken(credential);
 
+        // grab existing user by Google ID if available
+        const existingUser = await this.usersService.findByGoogleId(payload.sub);
+
         // Upsert user by email (atomic) and fetch the user document
-        let appUser: any | null = null;
-        if (payload.email) {
+        let appUser: User | null = existingUser ?? null;
+
+        if (!payload.email) {
+            throw new BadRequestException('Google account unexpectedly has no email association');
+        }
+
+        // if no existing user, create a new one
+        if (!appUser) {
             try {
                 const newUserProfile = this.usersService.generateNewUserProfile(
                     payload.email,
@@ -34,23 +44,28 @@ export class AuthController {
                     payload.sub
                 );
                 appUser = await this.usersService.upsertByEmail(payload.email, newUserProfile);
+                // check new user was created
+                if (!appUser) {
+                    throw new BadRequestException('New user provisioning failed');
+                }
+                
             } catch (err) {
                 console.error('Error upserting user:', err);
                 throw new BadRequestException('Error processing user');
             }
         }
+        // remove after testing
         console.log('App user after upsert:', appUser);
-        if (!appUser) {
-            throw new BadRequestException('User provisioning failed');
+
+        if (!appUser.googleId) {
+            throw new BadRequestException('Fatal: User has no Google ID');
         }
 
         // Create our session token with internal user id and minimal hints
         const session = this.authService.signSession({
-            sub: String(appUser._id),
+            sub: appUser.googleId,
             email: appUser.email,
-            email_verified: payload.email_verified!,
             name: appUser.name,
-            picture: appUser.avatarUrl,
         });
 
         const cookieDomain = process.env.COOKIE_DOMAIN;

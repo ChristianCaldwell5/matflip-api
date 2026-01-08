@@ -21,8 +21,8 @@ export class LevelingService {
     PAIRS_MASTERY_WIN_XP = 25; // xp per MASTERY pair win
     SOLUTION_XP = 12; // xp per solution found
 
-    QUICK_MATCHING_BONUS_XP = 25; // bonus xp for winning PAIRS quickly
-    HIGH_STREAK_BONUS_XP = 25; // bonus xp for achieving high SOLUTION streaks
+    QUICK_MATCHING_BONUS_XP = 15; // bonus xp for winning PAIRS quickly
+    HIGH_STREAK_BONUS_XP = 20; // bonus xp for achieving high SOLUTION streaks
     DAILY_CHALLENGE_BONUS_XP = 50; // bonus xp for completing DAILY challenge
 
     EASY_QUICK_TIME_THRESHOLD = 20; // seconds for easy mode quick matching

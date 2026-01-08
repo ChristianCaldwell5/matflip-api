@@ -43,7 +43,7 @@ export class AuthService {
         }
     }
 
-    signSession(payload: Pick<TokenPayload, 'sub' | 'email' | 'email_verified' | 'name' | 'picture'>): string {
+    signSession(payload: Pick<TokenPayload, 'sub' | 'email' | 'name'>): string {
         const secret = process.env.JWT_SECRET;
         if (!secret) {
             throw new UnauthorizedException('Server missing JWT_SECRET');
@@ -53,9 +53,7 @@ export class AuthService {
             {
                 sub: payload.sub,
                 email: payload.email,
-                email_verified: payload.email_verified,
                 name: payload.name,
-                picture: payload.picture,
             },
             secret,
             { expiresIn: '7d' }

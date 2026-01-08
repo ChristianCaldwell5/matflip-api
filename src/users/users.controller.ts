@@ -30,11 +30,13 @@ export class UsersController {
             throw new BadRequestException('Missing session');
         }
         const claims = this.authService.verifySession(token);
-        const userId = claims.sub as string | undefined;
-        if (!userId) {
+
+        const googleId = claims.sub as string | undefined;
+        if (!googleId) {
             throw new BadRequestException('Invalid session');
         }
-        const user = await this.usersService.findByUserId(userId);
+        // Look up by Google ID to avoid casting errors on ObjectId
+        const user = await this.usersService.findByGoogleId(googleId);
         if (!user) {
             throw new BadRequestException('User not found');
         }
@@ -71,12 +73,14 @@ export class UsersController {
             throw new BadRequestException('Missing session');
         }
         const claims = this.authService.verifySession(token);
-        const userId = claims.sub as string | undefined;
-        if (!userId) {
+        // Session `sub` contains the Google ID (from auth.controller)
+        const googleId = claims.sub as string | undefined;
+        if (!googleId) {
             throw new BadRequestException('Invalid session');
         }
 
-        const user = await this.usersService.findByUserId(userId);
+        // Look up by Google ID to avoid casting errors on ObjectId
+        const user = await this.usersService.findByGoogleId(googleId);
         if (!user) {
             throw new BadRequestException('User not found');
         }

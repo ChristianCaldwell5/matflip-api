@@ -12,7 +12,7 @@ import { GameMode } from "src/globals/enums/game-modes.enum";
  * @property solutionsFound number of solutions found (for SOLUTION mode)
  * @property solutionStreak current solution streak (for SOLUTION mode)
  * @property dailyTimeTakenInSeconds time taken for daily challenge (for DAILY mode)
- * */
+ */
 export class ProgressionUpdateRequest {
     gameModeDirective!: GameMode;
     flipsMade?: number;
