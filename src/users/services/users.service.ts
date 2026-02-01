@@ -102,6 +102,12 @@ export class UsersService {
                 currentXp: 0,
                 xpToNextLevel: this.levelingService.getXpForLevel(2),
             },
+            ownedCatalogItems: [],
+            currentCustomizationSelects: {
+                cardSkin: null,
+                matchEffect: null,
+                title: null,
+            },
         };
     }
 

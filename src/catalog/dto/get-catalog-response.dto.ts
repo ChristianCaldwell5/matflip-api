@@ -1,13 +1,15 @@
-import { CatalogDTO } from "./catalog.dto";
+import { CatalogDTO, CatalogItemDTO } from "./catalog.dto";
 
 /**
  * DTO for the response of getting catalog items
- * @property catalogItems the list of catalog items
- * @property version the version number of the catalog
+ * @extends CatalogDTO
  * @property requestedAt the timestamp when the request was made
  */
-export class GetCatalogResponse {
-    catalogItems: CatalogDTO[];
-    version: number;
+export class GetCatalogResponse extends CatalogDTO {
     requestedAt: Date;
+
+    constructor(catalog?: CatalogDTO, requestedAt?: Date) {
+        super(catalog || {});
+        this.requestedAt = requestedAt || new Date();
+    }
 }

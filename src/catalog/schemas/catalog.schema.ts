@@ -5,25 +5,19 @@ import { RarityType } from "src/globals/enums/rarity-types.enum";
 import { UnlockType } from "src/globals/enums/unlock-types.enum";
 
 export type CatalogDocument = HydratedDocument<Catalog>;
-export type CatalogAuditDocument = HydratedDocument<CatalogAudit>;
+export type CatalogItemDocument = HydratedDocument<CatalogItem>;
 
 /**
- * Mongoose schema for catalog items
- * Catalog items represent unlockable content in the game
- * @property type the type of catalog item
- * @property name the name of the catalog item
- * @property rarity the rarity level of the catalog item
- * @property unlockType the method by which the catalog item is unlocked
- * @property isRetired whether the catalog item is retired
- * @property version the version number of the catalog item
- * @property styleRecipe the style recipe associated with the catalog item
+ * Nested document schema representing a single catalog item.
+ * These are embedded within a `Catalog` document under `items`.
  */
-@Schema({ id: true, timestamps: true, toObject: { virtuals: true }, toJSON: { virtuals: true } })
-export class Catalog {
+@Schema({ _id: true })
+export class CatalogItem {
     @Prop({ required: true, enum: CatalogType })
     type: CatalogType;
 
-    @Prop({ index: true, required: true })
+    // Item-specific name
+    @Prop({ required: true })
     name: string;
 
     @Prop({ required: true })
@@ -48,20 +42,26 @@ export class Catalog {
     isAnimated: boolean;
 }
 
+export const CatalogItemSchema = SchemaFactory.createForClass(CatalogItem);
+
 /**
- * Mongoose schema for catalog audit
- * @property version the version number of the catalog
- * @property lastUpdated the timestamp of the last update
+ * Catalog schema represents a named catalog containing a list of items
+ * and a catalog-level version that tracks updates to its item list.
  */
-export class CatalogAudit {
-    @Prop({ required: true })
+@Schema({ id: true, timestamps: true, toObject: { virtuals: true }, toJSON: { virtuals: true } })
+export class Catalog {
+    // Catalog-level name used to query a catalog document
+    @Prop({ index: true, required: true, unique: true })
+    name: string;
+
+    // Catalog-level version sticking with the list of items
+    @Prop({ required: true, default: 1 })
     version: number;
 
-    @Prop({ required: true })
-    lastUpdated: Date;
+    // Embedded list of catalog items
+    @Prop({ type: [CatalogItemSchema], default: [] })
+    items: CatalogItem[];
 }
 
 export const CatalogSchema = SchemaFactory.createForClass(Catalog);
 CatalogSchema.index({ name: 1 }, { unique: true });
-
-export const CatalogAuditSchema = SchemaFactory.createForClass(CatalogAudit);

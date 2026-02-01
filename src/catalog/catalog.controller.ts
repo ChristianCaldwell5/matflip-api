@@ -1,10 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException, Headers, UnauthorizedException, Req, BadRequestException } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { CreateCatalogRequest } from './dto/create-catalog-request.dto';
-import { CatalogDTO, toCatalogDTO } from './dto/catalog.dto';
+import { CatalogDTO, CatalogItemDTO, toCatalogDTO, toCatalogItemDTO } from './dto/catalog.dto';
 import { AuthService } from 'src/auth/auth.service';
 import { GetCatalogResponse } from './dto/get-catalog-response.dto';
-import { CatalogAuditDocument } from './schemas/catalog.schema';
 
 @Controller('catalog')
 export class CatalogController {
@@ -13,71 +12,7 @@ export class CatalogController {
     private readonly authService: AuthService,
   ) {}
 
-  // TODO: update authorization logic >:(
-
-  @Get()
-  async getCatalogWithAudit(@Req() req: Request, @Headers('x-mat-flip-request') secureHeader?: string): Promise<GetCatalogResponse> {
-    const token = (req as any).cookies?.['mf_session'];
-    let authorized = false;
-
-    // attempt authorization via secure header first
-    if (secureHeader == process.env.MAT_FLIP_X_HEADER) {
-      authorized = true;
-    }
-
-    // check session cookie if not yet authorized
-    if (!authorized && token) {
-      const claims = this.authService.verifySession(token);
-      // Session `sub` contains the Google ID (from auth.controller)
-      const googleId = claims.sub as string | undefined;
-      if (googleId) {
-          authorized = true;
-      }
-    }
-
-    if (!authorized) {
-      throw new UnauthorizedException('This is not the catalog you are looking for... is it?');
-    }
-    
-    const catalogs = await this.catalogService.findAll();
-    const audit = await this.catalogService.getAudit();
-    const auditVersion = audit?.toJSON().version;
-    
-    return {
-      catalogItems: catalogs.map(toCatalogDTO),
-      version: auditVersion ?? 0,
-      requestedAt: new Date(),
-    };
-  }
-
-  @Get('/items')
-  async findAllItems(@Req() req: Request, @Headers('x-mat-flip-request') secureHeader?: string): Promise<CatalogDTO[]> {
-    const token = (req as any).cookies?.['mf_session'];
-    let authorized = false;
-
-    // attempt authorization via secure header first
-    if (secureHeader == process.env.MAT_FLIP_X_HEADER) {
-      authorized = true;
-    }
-
-    // check session cookie if not yet authorized
-    if (!authorized && token) {
-      const claims = this.authService.verifySession(token);
-      // Session `sub` contains the Google ID (from auth.controller)
-      const googleId = claims.sub as string | undefined;
-      if (googleId) {
-          authorized = true;
-      }
-    }
-
-    if (!authorized) {
-      throw new UnauthorizedException('This is not the catalog you are looking for... is it?');
-    }
-    
-    const catalogs = await this.catalogService.findAll();
-    return catalogs.map(toCatalogDTO);
-  }
-
+  // Add item to catalog - creates catalog if it doesn't exist
   @Post('/items')
   async createItem(
     @Body() createCatalogRequest: CreateCatalogRequest,
@@ -86,84 +21,79 @@ export class CatalogController {
     if (secureHeader !== process.env.MAT_FLIP_X_HEADER) {
       throw new UnauthorizedException('YOU SHOULD NOT BE HERE >:(');
     }
-    const created = await this.catalogService.create(createCatalogRequest);
-    return toCatalogDTO(created);
+    const updatedCatalog = await this.catalogService.create(createCatalogRequest);
+    return toCatalogDTO(updatedCatalog);
   }
 
-  @Get('/items/:id')
-  async findOne(@Param('id') id: string): Promise<CatalogDTO> {
-    const catalog = await this.catalogService.findOne(id);
-    if (!catalog) {
-      throw new NotFoundException(`Catalog ${id} not found`);
-    }
-    return toCatalogDTO(catalog);
-  }
-
-  @Patch('/items/:id')
+  // Update catalog item in a specific catalog
+  @Patch('/:catalogName/items/:name')
   async update(
-    @Param('id') id: string,
+    @Param('catalogName') catalogName: string,
+    @Param('name') name: string,
     @Body() updateCatalogRequest: Partial<CreateCatalogRequest>,
   ): Promise<CatalogDTO> {
-    const updated = await this.catalogService.update(id, updateCatalogRequest);
+    const updated = await this.catalogService.update(catalogName, name, updateCatalogRequest);
     if (!updated) {
-      throw new NotFoundException(`Catalog ${id} not found`);
+      throw new NotFoundException(`Catalog ${catalogName} or item ${name} not found`);
     }
     return toCatalogDTO(updated);
   }
 
-  @Delete('/items/:id')
-  async remove(@Param('id') id: string): Promise<CatalogDTO> {
-    const removed = await this.catalogService.remove(id);
+  // Remove catalog item from a specific catalog
+  @Delete('/:catalogId/items/:itemId')
+  async remove(@Param('catalogId') catalogId: string, @Param('itemId') itemId: string): Promise<CatalogDTO> {
+    const removed = await this.catalogService.remove(catalogId, itemId);
     if (!removed) {
-      throw new NotFoundException(`Catalog ${id} not found`);
+      throw new NotFoundException(`Catalog ${catalogId} or item ${itemId} not found`);
     }
     return toCatalogDTO(removed);
   }
 
-  @Patch('/audit')
-  async updateAudit(
-    @Body('version') version: number,
+  // Get all catalogs - no requestedAt timestamp provided in response
+  @Get()
+  async getAllCatalogs(
+    @Req() req: Request,
     @Headers('x-mat-flip-request') secureHeader?: string,
-  ): Promise<CatalogAuditDocument> {
-    if (secureHeader !== process.env.MAT_FLIP_X_HEADER) {
-      throw new UnauthorizedException('YOU SHOULD NOT BE HERE >:(');
-    }
-    if (version === undefined || version === null) {
-      throw new BadRequestException('Version number is required to update audit');
-    }
-    return this.catalogService.updateAudit(version);
-  }
-
-  @Get('/audit')
-  async getAudit(
-    @Headers('x-mat-flip-request') secureHeader?: string,
-  ): Promise<CatalogAuditDocument> {
-    if (secureHeader !== process.env.MAT_FLIP_X_HEADER) {
-      throw new UnauthorizedException('YOU SHOULD NOT BE HERE >:(');
-    }
-    const audit = await this.catalogService.getAudit();
-    if (!audit) {
-      throw new NotFoundException('Catalog audit not found');
-    }
-    return audit;
-  }
-
-  @Get('/audit/version')
-  async getAuditVersion(
-    @Req() req: Request, @Headers('x-mat-flip-request') secureHeader?: string
-  ): Promise<{ version: number }> {
+  ): Promise<CatalogDTO[]> {
     const token = (req as any).cookies?.['mf_session'];
     let authorized = false;
 
-    // attempt authorization via secure header first
     if (secureHeader == process.env.MAT_FLIP_X_HEADER) {
       authorized = true;
     }
 
-    // check session cookie if not yet authorized
     if (!authorized && token) {
       const claims = this.authService.verifySession(token);
-      // Session `sub` contains the Google ID (from auth.controller)
+      const googleId = claims.sub as string | undefined;
+      if (googleId) {
+          authorized = true;
+      }
+    }
+
+    if (!authorized) {
+      throw new UnauthorizedException('You must be logged in to view catalogs.');
+    }
+
+    const catalogs = await this.catalogService.findAll();
+    return catalogs.map(toCatalogDTO);
+  }
+
+  // Get specific catalog by name - with requestedAt timestamp
+  @Get(':name')
+  async getCatalogByName(
+    @Param('name') name: string,
+    @Req() req: Request,
+    @Headers('x-mat-flip-request') secureHeader?: string,
+  ): Promise<GetCatalogResponse> {
+    const token = (req as any).cookies?.['mf_session'];
+    let authorized = false;
+
+    if (secureHeader == process.env.MAT_FLIP_X_HEADER) {
+      authorized = true;
+    }
+
+    if (!authorized && token) {
+      const claims = this.authService.verifySession(token);
       const googleId = claims.sub as string | undefined;
       if (googleId) {
           authorized = true;
@@ -174,8 +104,23 @@ export class CatalogController {
       throw new UnauthorizedException('This is not the catalog you are looking for... is it?');
     }
 
-    const audit = await this.catalogService.getAudit();
-    const auditVersion = audit?.toJSON().version;
-    return { version: auditVersion ?? 0 };
+    const catalog = await this.catalogService.findByName(name);
+    if (!catalog) {
+      throw new NotFoundException(`Catalog '${name}' not found`);
+    }
+    return new GetCatalogResponse(
+      toCatalogDTO(catalog), new Date()
+    );
+  }
+
+  @Get('/:catalogName/version')
+  async getVersion(
+    @Param('catalogName') catalogName: string,
+  ): Promise<{ version: number | null }> {
+    const version = await this.catalogService.getVersionByName(catalogName);
+    if (version === null) {
+      throw new NotFoundException(`Catalog with name '${catalogName}' not found`);
+    }
+    return { version };
   }
 }

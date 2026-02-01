@@ -2,6 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { PlayerStats, PlayerStatsSchema } from './player-stats.schema';
 import { LevelInfo, LevelInfoSchema } from './level-info.schema';
+import { CatalogItem, CatalogItemSchema } from 'src/catalog/schemas/catalog.schema';
+import { CurrentCustomizationSelects, CurrentCustomizationSelectsSchema } from './current-customization-selects.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -30,6 +32,12 @@ export class User {
 
   @Prop({ type: LevelInfoSchema })
   levelInfo?: LevelInfo;
+
+  @Prop({ type: CurrentCustomizationSelectsSchema })
+  currentCustomizationSelects?: CurrentCustomizationSelects;
+
+  @Prop({ type: [CatalogItemSchema], default: [] })
+  ownedCatalogItems?: CatalogItem[];
   // ** END MATFLIP bonus fields
 }
 
