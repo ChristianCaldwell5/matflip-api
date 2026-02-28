@@ -5,15 +5,20 @@ import { User, UserDocument } from '../schemas/user.schema';
 import { ProgressionUpdateRequest } from '../dto/progression-update-request.dto';
 import { ProgressionUpdateResponse } from '../dto/progression-update-response.dto';
 import { LevelingService } from './leveling.service';
+import { BreakdownType } from 'src/globals/enums/breakdown-types.enum';
 import { StatsService } from './stats.service';
 
 @Injectable()
 export class UsersService {
+    private readonly bucksPerXp: number;
     constructor(
         @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
         private readonly statsService: StatsService,
         private readonly levelingService: LevelingService
-    ) {}
+    ) {
+        const KEnv = Number(process.env.FLIP_BUCKS_PER_XP);
+        this.bucksPerXp = Number.isFinite(KEnv) && KEnv >= 0 ? KEnv : 0.2;
+    }
 
     // create a new user in the database
     create(data: Partial<User>) {
@@ -132,16 +137,30 @@ export class UsersService {
         return truncated.slice(0, spaceIndex + 2).trimEnd();
     }
 
-    updatePlayerProgression(user: User, progressionUpdate: ProgressionUpdateRequest): ProgressionUpdateResponse {
+    async updatePlayerProgression(user: User, progressionUpdate: ProgressionUpdateRequest): Promise<ProgressionUpdateResponse> {
         // update player stats based on progressionUpdate (side-effect)
         const updatedStats = this.statsService.processUserStats(user, progressionUpdate);
 
         user.stats = updatedStats;
 
         // Update player level based on progressionUpdate
-        const levelingResult = this.levelingService.processUserLeveling(user, progressionUpdate);
+        const levelingResult = await this.levelingService.processUserLeveling(user, progressionUpdate);
+        // Convert total XP gained into Flip Bucks (Option A: XP-indexed)
+        const totalXp = (levelingResult.breakdown || []).find(b => b.type === BreakdownType.TOTAL_XP_GAINED)?.amount || 0;
+        const flipBucksEarned = Math.floor(totalXp * this.bucksPerXp);
+        if (flipBucksEarned > 0) {
+            user.flipBucks = (user.flipBucks ?? 0) + flipBucksEarned;
+            // update response DTO to reflect new flipBucks
+            levelingResult.user.flipBucks = user.flipBucks;
+            // add breakdown entry
+            levelingResult.breakdown.push({
+                type: BreakdownType.FLIP_BUCKS_EARNED,
+                amount: flipBucksEarned,
+                description: `Converted ${totalXp} XP to ${flipBucksEarned} Flip Bucks`,
+            });
+        }
         // persist updated user
-        this.upsertByEmail(user.email, levelingResult.user);
+        await this.upsertByEmail(user.email, levelingResult.user);
         
         return levelingResult;
     }

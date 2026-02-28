@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { CatalogItem, CatalogItemSchema } from "src/catalog/schemas/catalog.schema";
+import { Catalog, CatalogItem, CatalogItemSchema } from "src/catalog/schemas/catalog.schema";
 
 @Schema({ _id: false })
 export class CurrentCustomizationSelects {

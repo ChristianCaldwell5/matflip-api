@@ -7,9 +7,10 @@ import { AuthModule } from 'src/auth/auth.module';
 import { AuthService } from 'src/auth/auth.service';
 import { LevelingService } from './services/leveling.service';
 import { StatsService } from './services/stats.service';
+import { CatalogModule } from 'src/catalog/catalog.module';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])],
+  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]), CatalogModule],
   providers: [UsersService, AuthService, StatsService, LevelingService],
   controllers: [UsersController],
   exports: [UsersService],

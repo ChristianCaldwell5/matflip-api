@@ -38,6 +38,9 @@ export class User {
 
   @Prop({ type: [CatalogItemSchema], default: [] })
   ownedCatalogItems?: CatalogItem[];
+
+  @Prop({ min: 0, max: 1000000, default: 0 })
+  flipBucks?: number;
   // ** END MATFLIP bonus fields
 }
 

@@ -1,6 +1,8 @@
 import { User, UserDocument } from '../schemas/user.schema';
 import { PlayerStats } from '../schemas/player-stats.schema';
 import { LevelInfo } from '../schemas/level-info.schema';
+import { CurrentCustomizationSelects } from '../schemas/current-customization-selects.schema';
+import { CatalogItem } from 'src/catalog/schemas/catalog.schema';
 
 // Data Transfer Object for outbound user responses
 export class UserDTO {
@@ -12,6 +14,9 @@ export class UserDTO {
   displayName?: string;
   stats?: PlayerStats;
   levelInfo?: LevelInfo;
+  currentCustomizationSelects?: CurrentCustomizationSelects;
+  ownedCatalogItems?: CatalogItem[];
+  flipBucks?: number;
   createdAt?: Date;
   updatedAt?: Date;
 
@@ -31,10 +36,14 @@ export class UserDTO {
       email: raw.email,
       name: raw.name,
       avatarUrl: raw.avatarUrl,
+      // TODO: TAKE GOOGLE ID OUT?
       googleId: raw.googleId,
       displayName: raw.displayName,
       stats: raw.stats,
       levelInfo: raw.levelInfo,
+      currentCustomizationSelects: raw.currentCustomizationSelects,
+      ownedCatalogItems: raw.ownedCatalogItems,
+      flipBucks: raw.flipBucks,
       createdAt: raw.createdAt ? new Date(raw.createdAt) : undefined,
       updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : undefined,
     });

@@ -14,5 +14,6 @@ import { AuthService } from 'src/auth/auth.service';
   ],
   controllers: [CatalogController],
   providers: [CatalogService, AuthService],
+  exports: [CatalogService],
 })
 export class CatalogModule {}

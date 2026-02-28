@@ -12,6 +12,8 @@ export class CatalogItemDTO {
     isRetired: boolean;
     version: number;
     styleRecipe: string;
+    levelRequirement?: number;
+    isSkyboxed?: boolean;
     isAnimated: boolean;
 
     private constructor(init: Partial<CatalogItemDTO>) {
@@ -28,6 +30,8 @@ export class CatalogItemDTO {
             unlockType: raw.unlockType,
             isRetired: raw.isRetired,
             styleRecipe: raw.styleRecipe,
+            levelRequirement: raw.levelRequirement,
+            isSkyboxed: raw.isSkyboxed,
             isAnimated: !!raw.isAnimated,
         });
     }
