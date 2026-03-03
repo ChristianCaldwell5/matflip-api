@@ -5,6 +5,9 @@ import { AuthService } from '../auth/auth.service';
 import { UserDTO, toUserDTO } from './dto/user.dto';
 import { ProgressionUpdateRequest } from './dto/progression-update-request.dto';
 import { ProgressionUpdateResponse } from './dto/progression-update-response.dto';
+import { PurchaseRequest } from './dto/purchase-request.dto';
+import { PurchaseResponse } from './dto/purchase-response.dto';
+import { CurrentCustomizationSelects } from './schemas/current-customization-selects.schema';
 
 @Controller('users')
 export class UsersController {
@@ -24,7 +27,7 @@ export class UsersController {
      * @returns User info
      */
     @Get('retrieve')
-    async retrieve(@Req() req: Request): Promise<UserDTO> {
+    async retrieveFromSessionCookie(@Req() req: Request): Promise<UserDTO> {
         const token = (req as any).cookies?.['mf_session'];
         if (!token) {
             throw new BadRequestException('Missing session');
@@ -49,7 +52,7 @@ export class UsersController {
      * @returns User info
      */
     @Get(':id')
-    async getByGoogleId(@Param('id') id: string, @Headers('x-mat-flip-request') secureHeader?: string): Promise<UserDTO> {
+    async getUserByGoogleId(@Param('id') id: string, @Headers('x-mat-flip-request') secureHeader?: string): Promise<UserDTO> {
         if (secureHeader !== process.env.MAT_FLIP_X_HEADER) {
             throw new UnauthorizedException('YOU SHOULD NOT BE HERE >:(');
         }
@@ -86,6 +89,63 @@ export class UsersController {
         }
 
         return this.usersService.updatePlayerProgression(user, progressionUpdateRequest);
+    }
+
+    /**
+     * Update user customization selects
+     * @param req request containing session cookie
+     * @param customizationSelects customization selects payload
+     * @returns Updated User info
+     */
+    @Post('/customization')
+    async updateUserCustomizationSelects(@Req() req: Request, @Body() customizationSelects: CurrentCustomizationSelects): Promise<UserDTO> {
+        const token = (req as any).cookies?.['mf_session'];
+        if (!token) {
+            throw new BadRequestException('Missing session');
+        }
+        const claims = this.authService.verifySession(token);
+        // Session `sub` contains the Google ID (from auth.controller)
+        const googleId = claims.sub as string | undefined;
+        if (!googleId) {
+            throw new BadRequestException('Invalid session');
+        }
+
+        // Look up by Google ID to avoid casting errors on ObjectId
+        const user = await this.usersService.findByGoogleId(googleId);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        const updatedUser = await this.usersService.upsertByEmail(user.email, {
+            currentCustomizationSelects: customizationSelects,
+        });
+
+        return toUserDTO(updatedUser);
+    }
+
+    /**
+     * Purchase a catalog item from the store.
+     * Verifies session, checks balance vs catalog item price,
+     * adds item to user's ownedCatalogItems, and deducts Flip Bucks.
+     */
+    @Post('/purchase')
+    async purchaseItem(@Req() req: Request, @Body() purchaseRequest: PurchaseRequest): Promise<PurchaseResponse> {
+        const token = (req as any).cookies?.['mf_session'];
+        if (!token) {
+            throw new BadRequestException('Missing session');
+        }
+        const claims = this.authService.verifySession(token);
+        const googleId = claims.sub as string | undefined;
+        if (!googleId) {
+            throw new BadRequestException('Invalid session');
+        }
+
+        const user = await this.usersService.findByGoogleId(googleId);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        return this.usersService.purchaseStoreCatalogItem(user, purchaseRequest);
     }
 
     /**

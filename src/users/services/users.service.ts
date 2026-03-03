@@ -1,19 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../schemas/user.schema';
 import { ProgressionUpdateRequest } from '../dto/progression-update-request.dto';
 import { ProgressionUpdateResponse } from '../dto/progression-update-response.dto';
+import { PurchaseRequest } from '../dto/purchase-request.dto';
+import { PurchaseResponse } from '../dto/purchase-response.dto';
 import { LevelingService } from './leveling.service';
+import { BreakdownType } from 'src/globals/enums/breakdown-types.enum';
 import { StatsService } from './stats.service';
+import { CatalogService } from 'src/catalog/catalog.service';
+import { toUserDTO } from '../dto/user.dto';
+import { RarityType } from 'src/globals/enums/rarity-types.enum';
+import { UnlockType } from 'src/globals/enums/unlock-types.enum';
 
 @Injectable()
 export class UsersService {
+    private readonly bucksPerXp: number;
     constructor(
         @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
         private readonly statsService: StatsService,
-        private readonly levelingService: LevelingService
-    ) {}
+        private readonly levelingService: LevelingService,
+        private readonly catalogService: CatalogService,
+    ) {
+        const KEnv = Number(process.env.FLIP_BUCKS_PER_XP);
+        this.bucksPerXp = Number.isFinite(KEnv) && KEnv >= 0 ? KEnv : 0.2;
+    }
 
     // create a new user in the database
     create(data: Partial<User>) {
@@ -132,17 +144,103 @@ export class UsersService {
         return truncated.slice(0, spaceIndex + 2).trimEnd();
     }
 
-    updatePlayerProgression(user: User, progressionUpdate: ProgressionUpdateRequest): ProgressionUpdateResponse {
+    async updatePlayerProgression(user: User, progressionUpdate: ProgressionUpdateRequest): Promise<ProgressionUpdateResponse> {
         // update player stats based on progressionUpdate (side-effect)
         const updatedStats = this.statsService.processUserStats(user, progressionUpdate);
 
         user.stats = updatedStats;
 
         // Update player level based on progressionUpdate
-        const levelingResult = this.levelingService.processUserLeveling(user, progressionUpdate);
+        const levelingResult = await this.levelingService.processUserLeveling(user, progressionUpdate);
+        // Convert total XP gained into Flip Bucks (Option A: XP-indexed)
+        const totalXp = (levelingResult.breakdown || []).find(b => b.type === BreakdownType.TOTAL_XP_GAINED)?.amount || 0;
+        const flipBucksEarned = Math.floor(totalXp * this.bucksPerXp);
+        if (flipBucksEarned > 0) {
+            user.flipBucks = (user.flipBucks ?? 0) + flipBucksEarned;
+            // update response DTO to reflect new flipBucks
+            levelingResult.user.flipBucks = user.flipBucks;
+            // add breakdown entry
+            levelingResult.breakdown.push({
+                type: BreakdownType.FLIP_BUCKS_EARNED,
+                amount: flipBucksEarned,
+                description: `Converted ${totalXp} XP to ${flipBucksEarned} Flip Bucks`,
+            });
+        }
         // persist updated user
-        this.upsertByEmail(user.email, levelingResult.user);
+        await this.upsertByEmail(user.email, levelingResult.user);
         
         return levelingResult;
+    }
+
+    /**
+     * Process a store purchase for a user.
+     * Verifies the item exists in the catalog, is purchasable,
+     * that the user hasn't already purchased it, and has enough Flip Bucks.
+     */
+    async purchaseStoreCatalogItem(user: User, purchaseRequest: PurchaseRequest): Promise<PurchaseResponse> {
+        const { catalogName, itemName } = purchaseRequest;
+
+        // Look up the catalog
+        const catalog = await this.catalogService.findByName(catalogName);
+        if (!catalog) {
+            throw new BadRequestException(`Catalog '${catalogName}' not found`);
+        }
+
+        // Find the specific item
+        const catalogItem = catalog.items.find(i => i.name === itemName);
+        if (!catalogItem) {
+            throw new BadRequestException(`Item '${itemName}' not found in catalog '${catalogName}'`);
+        }
+
+        // Ensure the item is purchasable (must be an in-game purchase type)
+        if (catalogItem.unlockType !== UnlockType.IN_GAME_PURCHASE) {
+            throw new BadRequestException('This item is not available for purchase');
+        }
+
+        // Resolve price: explicit flipBucksRequirement or fallback by rarity
+        const price = catalogItem.flipBucksRequirement ?? this.getDefaultPriceForRarity(catalogItem.rarity);
+
+        // Check if already owned
+        const alreadyOwned = (user.ownedCatalogItems ?? []).some(o => o.name === itemName);
+        if (alreadyOwned) {
+            throw new BadRequestException('You already own this item');
+        }
+
+        // Check balance
+        const currentBucks = user.flipBucks ?? 0;
+        if (currentBucks < price) {
+            throw new BadRequestException('Not enough Flip Bucks');
+        }
+
+        // Deduct and add item
+        const updatedUser = await this.userModel.findOneAndUpdate(
+            { email: user.email },
+            {
+                $inc: { flipBucks: -price },
+                $push: { ownedCatalogItems: catalogItem },
+            },
+            { new: true },
+        ).exec();
+
+        if (!updatedUser) {
+            throw new BadRequestException('Failed to process purchase');
+        }
+
+        return {
+            user: toUserDTO(updatedUser),
+            purchasedItemName: itemName,
+            flipBucksSpent: price,
+        };
+    }
+
+    private getDefaultPriceForRarity(rarity: RarityType): number {
+        switch (rarity) {
+            case RarityType.COMMON:    return 100;
+            case RarityType.UNCOMMON:  return 250;
+            case RarityType.RARE:      return 500;
+            case RarityType.EPIC:      return 900;
+            case RarityType.LEGENDARY: return 1500;
+            default:                   return 250;
+        }
     }
 }

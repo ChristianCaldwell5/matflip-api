@@ -9,6 +9,10 @@ import { levelToXp } from "src/globals/dictionaries/level.dict";
 import { ProgressionBreakdown } from "../dto/progression-breakdown.dto";
 import { BreakdownType } from "src/globals/enums/breakdown-types.enum";
 import { toUserDTO } from "../dto/user.dto";
+import { CatalogService } from "src/catalog/catalog.service";
+import { UnlockType } from "src/globals/enums/unlock-types.enum";
+import { CatalogType } from "src/globals/enums/catalog-types.enum";
+import { Catalog, CatalogItem } from "src/catalog/schemas/catalog.schema";
 
 @Injectable()
 export class LevelingService {
@@ -40,9 +44,9 @@ export class LevelingService {
     EXPERT_MODE_MULTIPLIER = 1.15; // xp multiplier for expert mode
     MASTERY_MODE_MULTIPLIER = 1.20; // xp multiplier for mastery mode (PAIRS only)
 
-    constructor() {}
+    constructor(private readonly catalogService: CatalogService) {}
 
-    processUserLeveling(user: User, progressionUpdateRequest: ProgressionUpdateRequest): ProgressionUpdateResponse {
+    async processUserLeveling(user: User, progressionUpdateRequest: ProgressionUpdateRequest): Promise<ProgressionUpdateResponse> {
         
         if (!user.levelInfo) {
             throw Error(`User level info for ${user.googleId} is unexpectedly undefined`);
@@ -225,6 +229,8 @@ export class LevelingService {
         let currLvl = currentUserLevel
         let currXp = currentXp
         let xpNextLvl = xpToNextLevel
+        // Cache catalogs once for reward checks during this update
+        const catalogs = await this.catalogService.findAll();
         while (cumulativeXpGained > 0) {
 
             if (cumulativeXpGained + currXp >= xpNextLvl) {
@@ -244,6 +250,41 @@ export class LevelingService {
                     toLevel: updatedUserLeveling.currentLevel,
                     description: `Leveled up to level ${updatedUserLeveling.currentLevel} with ${(xpNextLvl - currXp)} XP!`,
                 });
+                // Award any catalog items unlocked by reaching this level
+                const unlocked = this.getLevelUpRewardsForLevel(catalogs, updatedUserLeveling.currentLevel, user.ownedCatalogItems || []);
+                if (unlocked.length > 0) {
+                    let unlockDescription: string  = "";
+                    
+                    // Ensure owned items array exists
+                    user.ownedCatalogItems = user.ownedCatalogItems || [];
+                    for (const item of unlocked) {
+                        user.ownedCatalogItems.push(item);
+                        let itemDesc: string;
+                        switch (item.type) {
+                            case CatalogType.CARD_SKIN:
+                                itemDesc = 'Skin';
+                                break;
+                            case CatalogType.MATCH_EFFECT:
+                                itemDesc = 'Effect';
+                                break;
+                            case CatalogType.TITLE:
+                                itemDesc = 'Title';
+                                break;
+                            default:
+                                itemDesc = 'Other';
+                        }
+                        unlockDescription += `${itemDesc}: "${item.displayName}", `;
+                    }
+                    // trim trailing comma and space
+                    unlockDescription = unlockDescription.slice(0, -2);
+
+                    // add breakdown entry for earned catalog items
+                    progressionBreakdowns.push({
+                        type: BreakdownType.EARNED_CATALOG_ITEM,
+                        toLevel: updatedUserLeveling.currentLevel,
+                        description: `${unlockDescription}`,
+                    });
+                }
                 currXp = 0;
             } else {
                 // Just add XP
@@ -266,6 +307,30 @@ export class LevelingService {
             return levelToXp[level];
         }
         return 1200; // prestige level cap XP
+    }
+
+    /**
+     * Get names of catalog items with `unlockType=LEVEL_UP` that have a `levelRequirement` <= reachedLevel
+     * and are not already owned.
+     */
+    private getLevelUpRewardsForLevel(catalogs: Catalog[], reachedLevel: number, alreadyOwned: CatalogItem[]): CatalogItem[] {
+        const ownedNameSet = new Set((alreadyOwned || []).map(i => i?.name).filter(Boolean));
+        const unlocked: CatalogItem[] = [];
+        for (const catalog of catalogs || []) {
+            for (const item of (catalog?.items || [])) {
+                if (item?.unlockType === UnlockType.LEVEL_UP && !item?.isRetired) {
+                    const req = item?.levelRequirement ?? null;
+                    if (req !== null && req !== undefined && req <= reachedLevel) {
+                        const name = item?.name;
+                        if (name && !ownedNameSet.has(name)) {
+                            unlocked.push(item);
+                            ownedNameSet.add(name);
+                        }
+                    }
+                }
+            }
+        }
+        return unlocked;
     }
 }
     

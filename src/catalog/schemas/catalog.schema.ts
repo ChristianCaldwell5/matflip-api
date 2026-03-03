@@ -35,8 +35,17 @@ export class CatalogItem {
     @Prop({ required: true })
     version: number;
 
-    @Prop({ required: true })
+    @Prop({ required: false })
     styleRecipe: string;
+
+    @Prop({ required: false})
+    levelRequirement: number;
+
+    @Prop({ required: false})
+    flipBucksRequirement: number;
+
+    @Prop({ required: false})
+    isSkyboxed: boolean;
 
     @Prop({ type: Boolean, default: false })
     isAnimated: boolean;

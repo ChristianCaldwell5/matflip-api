@@ -97,3 +97,57 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## MongoDB Seeding (Default Catalog)
+
+On first `docker compose up`, the Mongo container runs scripts in `/docker-entrypoint-initdb.d` and seeds the `catalogs` collection in the `matflip_dev` database with a `default` catalog and items.
+
+- Init script: [docker/mongo-init/01-init-catalog.js](docker/mongo-init/01-init-catalog.js)
+- Compose mount: configured in [docker-compose.yml](docker-compose.yml) under the `mongo` service.
+
+Notes:
+- Scripts only run when the Mongo data directory is empty (first start). To re-run seeding, stop containers and remove the `mongo_data` volume:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+- Adjust the default items in the init script as needed. Ensure enum string values align with app enums (e.g., `type`: card_skin|match_effect|title, `rarity`: common|uncommon|rare|epic|legendary, `unlockType`: level_up).
+
+## Dockerized Testing
+
+Use these commands to build, run, and iterate on the app without resetting Mongo unless you intend to:
+
+- Bring down all containers and remove volumes (fresh start):
+
+```bash
+docker compose down -v
+```
+
+- Build and bring up all services:
+
+```bash
+docker compose up -d --build
+```
+
+- Stop only the app service (leave Mongo running and data intact):
+
+```bash
+docker compose stop app
+```
+
+- Rebuild and start only the app service:
+
+```bash
+docker compose up -d app --build
+```
+
+Notes:
+- `docker compose down` always stops the entire project; to stop just one service, prefer `docker compose stop <service>`.
+- If you need to recreate the app container (without touching Mongo), you can also do:
+
+```bash
+docker compose rm -f app
+docker compose up -d app --build
+```
