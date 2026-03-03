@@ -5,6 +5,8 @@ import { AuthService } from '../auth/auth.service';
 import { UserDTO, toUserDTO } from './dto/user.dto';
 import { ProgressionUpdateRequest } from './dto/progression-update-request.dto';
 import { ProgressionUpdateResponse } from './dto/progression-update-response.dto';
+import { PurchaseRequest } from './dto/purchase-request.dto';
+import { PurchaseResponse } from './dto/purchase-response.dto';
 import { CurrentCustomizationSelects } from './schemas/current-customization-selects.schema';
 
 @Controller('users')
@@ -119,6 +121,31 @@ export class UsersController {
         });
 
         return toUserDTO(updatedUser);
+    }
+
+    /**
+     * Purchase a catalog item from the store.
+     * Verifies session, checks balance vs catalog item price,
+     * adds item to user's ownedCatalogItems, and deducts Flip Bucks.
+     */
+    @Post('/purchase')
+    async purchaseItem(@Req() req: Request, @Body() purchaseRequest: PurchaseRequest): Promise<PurchaseResponse> {
+        const token = (req as any).cookies?.['mf_session'];
+        if (!token) {
+            throw new BadRequestException('Missing session');
+        }
+        const claims = this.authService.verifySession(token);
+        const googleId = claims.sub as string | undefined;
+        if (!googleId) {
+            throw new BadRequestException('Invalid session');
+        }
+
+        const user = await this.usersService.findByGoogleId(googleId);
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        return this.usersService.purchaseStoreCatalogItem(user, purchaseRequest);
     }
 
     /**
