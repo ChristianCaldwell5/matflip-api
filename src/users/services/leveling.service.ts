@@ -178,9 +178,17 @@ export class LevelingService {
                 }
                 break;
             case GameMode.DAILY:
-                // Grant fixed bonus for daily challenge completion
+                // Base XP from pairs matched
+                if (progressionUpdateRequest.pairsMade) {
+                    cumulativeXpGained += progressionUpdateRequest.pairsMade * this.PAIR_MATCH_XP;
+                    progressionBreakdowns.push({
+                        type: BreakdownType.BASE_XP_GAINED,
+                        amount: progressionUpdateRequest.pairsMade * this.PAIR_MATCH_XP,
+                        description: `Matched ${progressionUpdateRequest.pairsMade} pairs`,
+                    });
+                }
+                // Fixed daily completion bonus
                 cumulativeXpGained += this.DAILY_CHALLENGE_BONUS_XP;
-                // add breakdown entry
                 progressionBreakdowns.push({
                     type: BreakdownType.DAILY_BONUS_XP_GAINED,
                     amount: this.DAILY_CHALLENGE_BONUS_XP,

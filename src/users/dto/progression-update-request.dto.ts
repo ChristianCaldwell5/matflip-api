@@ -11,7 +11,7 @@ import { GameMode } from "src/globals/enums/game-modes.enum";
  * @property timeTakenInSeconds time taken to complete the game (for PAIRS mode)
  * @property solutionsFound number of solutions found (for SOLUTION mode)
  * @property solutionStreak current solution streak (for SOLUTION mode)
- * @property dailyTimeTakenInSeconds time taken for daily challenge (for DAILY mode)
+ * @property dailyTimeTakenInMs time taken for daily challenge in milliseconds (for DAILY mode)
  */
 export class ProgressionUpdateRequest {
     gameModeDirective!: GameMode;
@@ -25,5 +25,7 @@ export class ProgressionUpdateRequest {
     solutionsFound?: number;
     solutionStreak?: number;
 
-    dailyTimeTakenInSeconds?: number;
+    dailyTimeTakenInMs?: number;
+    /** Chicago calendar date key "YYYY-MM-DD" for the daily being submitted */
+    dailyDateKey?: string;
 }

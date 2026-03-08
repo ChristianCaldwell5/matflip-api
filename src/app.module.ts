@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { DailyModule } from './daily/daily.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CatalogModule } from './catalog/catalog.module';
     UsersModule,
     AuthModule,
     CatalogModule,
+    DailyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

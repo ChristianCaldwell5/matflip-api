@@ -32,7 +32,7 @@ export class DailyStats {
     bestLeaderboardPosition: number | null;
 
     @Prop({ type: Number, default: null })
-    bestTimeInSeconds: number | null;
+    todaysTimeInSeconds: number | null;
 }
 
 export const DailyStatsSchema = SchemaFactory.createForClass(DailyStats);

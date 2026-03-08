@@ -42,18 +42,48 @@ export class StatsService {
                 break;
             case GameMode.DAILY:
                 updatedStats.daily.totalTimesPlayed += 1;
-                updatedStats.daily.currentStreak += 1;
-                if (progressionUpdateRequest.dailyTimeTakenInSeconds) {
-                    // Update best time if not yet set (will be null)
-                    if (!updatedStats.daily.bestTimeInSeconds) {
-                        updatedStats.daily.bestTimeInSeconds = progressionUpdateRequest.dailyTimeTakenInSeconds;
+                const prevLastPlayed = updatedStats.daily.lastPlayed;
+                const prevLastPlayedKey = prevLastPlayed
+                    ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date(prevLastPlayed))
+                    : null;
+                const submittedDateKey = progressionUpdateRequest.dailyDateKey
+                    ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
+                const isSameDayAsLastPlayed = prevLastPlayedKey === submittedDateKey;
+
+                // Streak logic: +1 if last played was yesterday (Chicago calendar), else reset
+                if (prevLastPlayedKey) {
+                    const yesterdayDate = new Date();
+                    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                    const yesterdayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' })
+                        .format(yesterdayDate);
+                    if (prevLastPlayedKey === yesterdayKey) {
+                        updatedStats.daily.currentStreak += 1;
+                    } else if (!isSameDayAsLastPlayed) {
+                        updatedStats.daily.currentStreak = 1;
                     }
-                    // Update best time if new time is better
-                    else if (progressionUpdateRequest.dailyTimeTakenInSeconds < updatedStats.daily.bestTimeInSeconds) {
-                        updatedStats.daily.bestTimeInSeconds = progressionUpdateRequest.dailyTimeTakenInSeconds;
+                    // retry same day — streak unchanged
+                } else {
+                    updatedStats.daily.currentStreak = 1;
+                }
+                if (updatedStats.daily.currentStreak > updatedStats.daily.longestStreak) {
+                    updatedStats.daily.longestStreak = updatedStats.daily.currentStreak;
+                }
+                updatedStats.daily.lastPlayed = new Date();
+
+                if (progressionUpdateRequest.dailyTimeTakenInMs) {
+                    const timeInSeconds = progressionUpdateRequest.dailyTimeTakenInMs / 1000;
+                    if (!isSameDayAsLastPlayed) {
+                        // New day — always store fresh
+                        updatedStats.daily.todaysTimeInSeconds = timeInSeconds;
+                    } else if (
+                        updatedStats.daily.todaysTimeInSeconds === null ||
+                        updatedStats.daily.todaysTimeInSeconds === undefined ||
+                        timeInSeconds < updatedStats.daily.todaysTimeInSeconds
+                    ) {
+                        // Same day retry — only update if better
+                        updatedStats.daily.todaysTimeInSeconds = timeInSeconds;
                     }
                 }
-                // TODO: handle other daily stats updates (e.g., leaderboard placements)
                 break;
             default:
                 // No stats update for unknown game mode - log
