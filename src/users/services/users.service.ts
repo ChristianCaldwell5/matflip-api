@@ -233,6 +233,39 @@ export class UsersService {
         };
     }
 
+    /**
+     * Awards leaderboard placement rewards to a user at end-of-day processing.
+     * Updates daily stats and directly grants XP (with leveling) + FlipBucks.
+     * This bypasses the normal progression flow to avoid unintended stat side effects.
+     */
+    async awardLeaderboardReward(user: User, rank: number, xp: number, flipBucks: number): Promise<void> {
+        this.levelingService.awardXpDirect(user, xp);
+
+        const currentBest = user.stats?.daily?.bestLeaderboardPosition ?? null;
+        const newBest = currentBest === null || rank < currentBest ? rank : currentBest;
+
+        await this.userModel.findOneAndUpdate(
+            { googleId: user.googleId },
+            {
+                $set: { levelInfo: user.levelInfo },
+                $inc: {
+                    flipBucks: flipBucks,
+                    'stats.daily.timesPlacedOnLeaderboard': 1,
+                    ...(rank <= 50 ? { 'stats.daily.timesTopFifty': 1 } : {}),
+                    ...(rank <= 3  ? { 'stats.daily.timesOnPodium': 1 } : {}),
+                },
+            },
+        ).exec();
+
+        // bestLeaderboardPosition requires a conditional set — handle separately if improved
+        if (newBest !== currentBest) {
+            await this.userModel.findOneAndUpdate(
+                { googleId: user.googleId },
+                { $set: { 'stats.daily.bestLeaderboardPosition': newBest } },
+            ).exec();
+        }
+    }
+
     private getDefaultPriceForRarity(rarity: RarityType): number {
         switch (rarity) {
             case RarityType.COMMON:    return 100;

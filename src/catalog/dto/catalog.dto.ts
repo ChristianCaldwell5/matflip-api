@@ -13,6 +13,7 @@ export class CatalogItemDTO {
     version: number;
     styleRecipe: string;
     levelRequirement?: number;
+    flipBucksRequirement?: number;
     isSkyboxed?: boolean;
     isAnimated: boolean;
 
@@ -31,6 +32,7 @@ export class CatalogItemDTO {
             isRetired: raw.isRetired,
             styleRecipe: raw.styleRecipe,
             levelRequirement: raw.levelRequirement,
+            flipBucksRequirement: raw.flipBucksRequirement,
             isSkyboxed: raw.isSkyboxed,
             isAnimated: !!raw.isAnimated,
         });

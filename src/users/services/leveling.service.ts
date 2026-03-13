@@ -310,6 +310,37 @@ export class LevelingService {
         return response;
     }
 
+    /**
+     * Directly awards a flat amount of XP to a user, handling level-ups with XP carryover.
+     * Does NOT update game stats, streaks, or grant catalog items.
+     * Mutates user.levelInfo in place and returns the updated LevelInfo.
+     * Caller is responsible for persisting the user.
+     */
+    awardXpDirect(user: User, xpToAward: number): LevelInfo {
+        if (!user.levelInfo) {
+            throw new Error(`User level info for ${user.googleId} is unexpectedly undefined`);
+        }
+
+        let remaining = xpToAward;
+        const info = user.levelInfo;
+
+        while (remaining > 0) {
+            const xpNeededToLevel = info.xpToNextLevel - info.currentXp;
+            if (remaining >= xpNeededToLevel) {
+                remaining -= xpNeededToLevel;
+                info.currentLevel += 1;
+                info.currentXp = 0;
+                info.xpToNextLevel = this.getXpForLevel(info.currentLevel + 1);
+            } else {
+                info.currentXp += remaining;
+                remaining = 0;
+            }
+        }
+
+        user.levelInfo = info;
+        return info;
+    }
+
     getXpForLevel(level: number): number {
         if (level <= 100) {
             return levelToXp[level];

@@ -28,6 +28,12 @@ export class DailyStats {
     @Prop({ default: 0 })
     timesPlacedOnLeaderboard: number;
 
+    @Prop({ default: 0 })
+    timesTopFifty: number;
+
+    @Prop({ default: 0 })
+    timesOnPodium: number;
+
     @Prop({ type: Number, default: null })
     bestLeaderboardPosition: number | null;
 
